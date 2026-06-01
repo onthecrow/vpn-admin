@@ -1,0 +1,6 @@
+# Copy this file to `firebase-admin.properties` (next to it) and fill in real values.
+# Android pulls Firebase config from `google-services.json`, so only admin
+# credentials live here. The actual `firebase-admin.properties` is gitignored.
+
+admin.email=admin@onthecrow.tech
+admin.password=replace-me

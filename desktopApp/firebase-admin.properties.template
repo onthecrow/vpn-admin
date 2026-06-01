@@ -1,0 +1,14 @@
+# Copy this file to `firebase-admin.properties` (next to it) and fill in real values
+# from the Firebase Console (Project Settings -> Your apps -> Web app config).
+# The actual `firebase-admin.properties` is gitignored.
+
+firebase.apiKey=AIzaSy...
+firebase.projectId=onthecrow-vpn
+firebase.applicationId=1:000000000000:web:0000000000000000000000
+firebase.storageBucket=onthecrow-vpn.firebasestorage.app
+firebase.gcmSenderId=000000000000
+firebase.authDomain=onthecrow-vpn.firebaseapp.com
+
+# Admin user created in Firebase Auth (Email/Password provider)
+admin.email=admin@onthecrow.tech
+admin.password=replace-me
