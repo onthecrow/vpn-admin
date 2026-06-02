@@ -23,7 +23,9 @@ import androidx.navigation3.ui.NavDisplay
 import com.onthecrow.vpnadmin.data.ConfigRepository
 import com.onthecrow.vpnadmin.data.FirestoreConfigRepository
 import com.onthecrow.vpnadmin.data.FirestoreServerRepository
+import com.onthecrow.vpnadmin.data.FirestoreTemplateRepository
 import com.onthecrow.vpnadmin.data.ServerRepository
+import com.onthecrow.vpnadmin.data.TemplateRepository
 import com.onthecrow.vpnadmin.firebase.FirebaseHandles
 import com.onthecrow.vpnadmin.firebase.FirebaseInitializer
 import com.onthecrow.vpnadmin.nav.ConfigDetailRoute
@@ -33,6 +35,7 @@ import com.onthecrow.vpnadmin.nav.Route
 import com.onthecrow.vpnadmin.nav.ServerDetailRoute
 import com.onthecrow.vpnadmin.nav.ServerEditRoute
 import com.onthecrow.vpnadmin.nav.ServersListRoute
+import com.onthecrow.vpnadmin.nav.TemplateRoute
 import com.onthecrow.vpnadmin.nav.VpnConfigEditRoute
 import com.onthecrow.vpnadmin.threexui.ServerStatusTracker
 import com.onthecrow.vpnadmin.threexui.ThreeXUiClient
@@ -43,6 +46,7 @@ import com.onthecrow.vpnadmin.ui.screens.ConfigsListScreen
 import com.onthecrow.vpnadmin.ui.screens.ServerDetailScreen
 import com.onthecrow.vpnadmin.ui.screens.ServerEditScreen
 import com.onthecrow.vpnadmin.ui.screens.ServersListScreen
+import com.onthecrow.vpnadmin.ui.screens.TemplateScreen
 import com.onthecrow.vpnadmin.ui.screens.VpnConfigEditScreen
 
 @Composable
@@ -73,6 +77,7 @@ private fun AppContent(handles: FirebaseHandles) {
     val scope = rememberCoroutineScope()
     val configRepo: ConfigRepository = remember(handles) { FirestoreConfigRepository(handles.firestore) }
     val serverRepo: ServerRepository = remember(handles) { FirestoreServerRepository(handles.firestore) }
+    val templateRepo: TemplateRepository = remember(handles) { FirestoreTemplateRepository(handles.firestore) }
 
     val tracker = remember(serverRepo) {
         ServerStatusTracker(ThreeXUiClient(), serverRepo, scope)
@@ -81,10 +86,12 @@ private fun AppContent(handles: FirebaseHandles) {
     var tab by remember { mutableStateOf(RootTab.Configs) }
     val configsBackStack = remember { mutableStateListOf<Route>(ConfigsListRoute) }
     val serversBackStack = remember { mutableStateListOf<Route>(ServersListRoute) }
+    val templateBackStack = remember { mutableStateListOf<Route>(TemplateRoute) }
     val session = remember { EditSession() }
 
     fun popConfigs() { if (configsBackStack.size > 1) configsBackStack.removeAt(configsBackStack.lastIndex) }
     fun popServers() { if (serversBackStack.size > 1) serversBackStack.removeAt(serversBackStack.lastIndex) }
+    fun popTemplate() { if (templateBackStack.size > 1) templateBackStack.removeAt(templateBackStack.lastIndex) }
 
     RootShell(selected = tab, onSelect = { tab = it }) {
         when (tab) {
@@ -149,6 +156,21 @@ private fun AppContent(handles: FirebaseHandles) {
                                 repo = serverRepo,
                                 tracker = tracker,
                                 onDone = { popServers() },
+                            )
+                        }
+                        else -> NavEntry(key) { Text("Unknown route: $key") }
+                    }
+                },
+            )
+            RootTab.Template -> NavDisplay(
+                backStack = templateBackStack,
+                onBack = { popTemplate() },
+                entryProvider = { key ->
+                    when (key) {
+                        is TemplateRoute -> NavEntry(key) {
+                            TemplateScreen(
+                                repo = templateRepo,
+                                serverRepo = serverRepo,
                             )
                         }
                         else -> NavEntry(key) { Text("Unknown route: $key") }

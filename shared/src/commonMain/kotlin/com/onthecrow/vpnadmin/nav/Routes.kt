@@ -27,7 +27,11 @@ data class ServerEditRoute(val id: String?) : Route
 @Serializable
 data class ServerDetailRoute(val id: String) : Route
 
+@Serializable
+data object TemplateRoute : Route
+
 enum class RootTab(val label: String) {
     Configs("Configs"),
     Servers("Servers"),
+    Template("Template"),
 }
