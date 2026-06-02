@@ -56,7 +56,7 @@ class FirestoreConfigRepository(
 }
 
 @OptIn(ExperimentalUuidApi::class)
-fun newConfigId(): String =
+fun newDocId(): String =
     Uuid.random().toHexString().take(20)
 
 @Serializable

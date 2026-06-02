@@ -34,7 +34,7 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import com.onthecrow.vpnadmin.data.ConfigRepository
 import com.onthecrow.vpnadmin.data.TopLevelConfig
-import com.onthecrow.vpnadmin.data.newConfigId
+import com.onthecrow.vpnadmin.data.newDocId
 import com.onthecrow.vpnadmin.ui.ContextMenuItem
 import com.onthecrow.vpnadmin.ui.ContextMenuWrapper
 import kotlinx.coroutines.flow.catch
@@ -68,7 +68,7 @@ fun ConfigsListScreen(
             FloatingActionButton(
                 onClick = {
                     scope.launch {
-                        val id = newConfigId()
+                        val id = newDocId()
                         runCatching {
                             repo.create(TopLevelConfig(id = id, name = "Untitled"))
                         }.onSuccess { onOpenConfig(id) }
@@ -97,7 +97,7 @@ fun ConfigsListScreen(
                                     runCatching {
                                         repo.create(
                                             cfg.copy(
-                                                id = newConfigId(),
+                                                id = newDocId(),
                                                 name = cfg.name + " (copy)",
                                             )
                                         )
