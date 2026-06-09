@@ -37,6 +37,7 @@ import com.onthecrow.vpnadmin.nav.ServerEditRoute
 import com.onthecrow.vpnadmin.nav.ServersListRoute
 import com.onthecrow.vpnadmin.nav.TemplateRoute
 import com.onthecrow.vpnadmin.nav.VpnConfigEditRoute
+import com.onthecrow.vpnadmin.subscription.SubscriptionCreator
 import com.onthecrow.vpnadmin.threexui.ServerStatusTracker
 import com.onthecrow.vpnadmin.threexui.ThreeXUiClient
 import com.onthecrow.vpnadmin.ui.EditSession
@@ -79,8 +80,12 @@ private fun AppContent(handles: FirebaseHandles) {
     val serverRepo: ServerRepository = remember(handles) { FirestoreServerRepository(handles.firestore) }
     val templateRepo: TemplateRepository = remember(handles) { FirestoreTemplateRepository(handles.firestore) }
 
-    val tracker = remember(serverRepo) {
-        ServerStatusTracker(ThreeXUiClient(), serverRepo, scope)
+    val threeXUiClient = remember { ThreeXUiClient() }
+    val tracker = remember(serverRepo, threeXUiClient) {
+        ServerStatusTracker(threeXUiClient, serverRepo, scope)
+    }
+    val subscriptionCreator = remember(threeXUiClient, configRepo) {
+        SubscriptionCreator(threeXUiClient, configRepo)
     }
 
     var tab by remember { mutableStateOf(RootTab.Configs) }
@@ -103,6 +108,9 @@ private fun AppContent(handles: FirebaseHandles) {
                         is ConfigsListRoute -> NavEntry(key) {
                             ConfigsListScreen(
                                 repo = configRepo,
+                                templateRepo = templateRepo,
+                                serverRepo = serverRepo,
+                                creator = subscriptionCreator,
                                 onOpenConfig = { id -> configsBackStack.add(ConfigDetailRoute(id)) },
                             )
                         }

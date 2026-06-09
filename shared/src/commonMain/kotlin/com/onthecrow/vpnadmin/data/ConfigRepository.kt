@@ -59,6 +59,15 @@ class FirestoreConfigRepository(
 fun newDocId(): String =
     Uuid.random().toHexString().take(20)
 
+/**
+ * Canonical UUIDv4 string (e.g. `aaaaaaaa-bbbb-4ccc-dddd-eeeeeeeeeeee`) — 128 bits with the
+ * proper version 4 and variant bits. Used as a subscription's `subId` (and Firestore doc id
+ * of the auto-created `configs/{...}` document). Consumer apps (OnthecrowVpn) expect this
+ * canonical shape.
+ */
+@OptIn(ExperimentalUuidApi::class)
+fun newSubscriptionId(): String = Uuid.random().toString()
+
 @Serializable
 private data class TopLevelConfigDto(
     val name: String = "",

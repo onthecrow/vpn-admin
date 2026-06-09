@@ -5,15 +5,21 @@ import com.onthecrow.vpnadmin.data.Server
 import io.ktor.client.HttpClient
 import io.ktor.client.call.body
 import io.ktor.client.request.bearerAuth
-import io.ktor.client.request.get
-import io.ktor.client.statement.HttpResponse
+import io.ktor.client.request.request
+import io.ktor.client.request.setBody
 import io.ktor.client.statement.bodyAsText
+import io.ktor.http.ContentType
 import io.ktor.http.HttpHeaders
+import io.ktor.http.HttpMethod
+import io.ktor.http.contentType
 import io.ktor.http.isSuccess
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 
@@ -39,20 +45,96 @@ class ThreeXUiClient {
         }
     }
 
+    /**
+     * Create a client attached to one or more [inbounds] of [server]. The panel makes one
+     * client row with one email + subId, but it shows up under every inbound in the list
+     * and yields one link per inbound (via [getClientLinks]).
+     *
+     * `flow: xtls-rprx-vision` is included iff **any** inbound in the list has VLESS
+     * protocol — hysteria / hysteria2 inbounds ignore it server-side. `enable` is hardcoded
+     * `true`. Other client fields (`totalGB`, `expiryTime`, `limitIp`) get panel defaults.
+     *
+     * Maps `POST /panel/api/clients/add`.
+     */
+    suspend fun addClient(
+        server: Server,
+        inbounds: List<InboundSummary>,
+        email: String,
+        subId: String,
+    ): Result<Unit> = runCatching {
+        if (email.isBlank()) error("email is required")
+        if (subId.isBlank()) error("subId is required")
+        if (inbounds.isEmpty()) error("at least one inbound is required")
+
+        val anyVless = inbounds.any { it.protocol.equals("vless", ignoreCase = true) }
+        val clientObj = buildJsonObject {
+            put("email", JsonPrimitive(email))
+            put("subId", JsonPrimitive(subId))
+            put("enable", JsonPrimitive(true))
+            if (anyVless) put("flow", JsonPrimitive("xtls-rprx-vision"))
+        }
+        val body = buildJsonObject {
+            put("client", clientObj)
+            put("inboundIds", buildJsonArray { inbounds.forEach { add(JsonPrimitive(it.id)) } })
+        }
+        callApi(server, "/panel/api/clients/add", method = HttpMethod.Post, jsonBody = body)
+    }
+
+    /** Lightweight list of clients (`email` + `subId`) — used to dedupe email on creation. */
+    suspend fun listClients(server: Server): Result<List<ClientSummary>> = runCatching {
+        val arr = callApi(server, "/panel/api/clients/list").jsonArray
+        arr.map { el ->
+            val o = el.jsonObject
+            ClientSummary(
+                email = o["email"]?.asString().orEmpty(),
+                subId = o["subId"]?.asString().orEmpty(),
+            )
+        }
+    }
+
+    /** Subscription links for a client by email — one URL per attached inbound. */
+    suspend fun getClientLinks(server: Server, email: String): Result<List<String>> = runCatching {
+        val arr = callApi(server, "/panel/api/clients/links/$email").jsonArray
+        arr.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+    }
+
+    /**
+     * Delete clients by email in one panel-side transaction. `keepTraffic = false` drops
+     * the traffic rows too. Maps `POST /panel/api/clients/bulkDel`.
+     */
+    suspend fun bulkDeleteClients(server: Server, emails: List<String>): Result<Unit> = runCatching {
+        if (emails.isEmpty()) return@runCatching
+        val body = buildJsonObject {
+            put("emails", buildJsonArray { emails.forEach { add(JsonPrimitive(it)) } })
+            put("keepTraffic", JsonPrimitive(false))
+        }
+        callApi(server, "/panel/api/clients/bulkDel", method = HttpMethod.Post, jsonBody = body)
+    }
+
     /** Back-compat for ServerEditScreen's "Connect" button — only needs success/failure. */
     suspend fun verifyConnection(server: Server): Result<ServerSnapshot> = fetchStatus(server)
 
     // ───────────────────── shared HTTP plumbing ─────────────────────
 
-    private suspend fun callApi(server: Server, path: String): JsonElement {
+    private suspend fun callApi(
+        server: Server,
+        path: String,
+        method: HttpMethod = HttpMethod.Get,
+        jsonBody: JsonElement? = null,
+    ): JsonElement {
         validate(server)
         val base = server.normalizedBase
         val http: HttpClient = createPanelHttpClient(skipTlsVerify = server.skipTlsVerify)
         try {
             val resp = try {
-                http.get("$base$path") {
+                http.request("$base$path") {
+                    this.method = method
                     bearerAuth(server.apiToken)
                     headers.append(HttpHeaders.Accept, "application/json")
+                    if (jsonBody != null) {
+                        contentType(ContentType.Application.Json)
+                        setBody(jsonBody.toString())
+                    }
                 }
             } catch (e: Throwable) {
                 error("$path failed: ${e::class.simpleName} — ${e.message}")
@@ -77,8 +159,7 @@ class ThreeXUiClient {
             if (!envelope.success) {
                 error(envelope.msg ?: "API responded success=false at $path")
             }
-            return envelope.obj
-                ?: error("API response at $path has no 'obj' field")
+            return envelope.obj ?: JsonObject(emptyMap())
         } finally {
             http.close()
         }
@@ -117,6 +198,11 @@ class ThreeXUiClient {
         )
     }
 }
+
+data class ClientSummary(
+    val email: String,
+    val subId: String,
+)
 
 @Serializable
 private data class ApiEnvelope(

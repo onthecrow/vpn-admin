@@ -136,9 +136,17 @@ fun TemplateScreen(
             return@let
         }
         val server = servers.firstOrNull { it.id == slot.serverId }
+        // Enforce "one config per inbound per slot": drop inbounds already used by *other*
+        // entries in this slot (keep the inbound the entry being edited currently points to).
+        val takenIds = slot.configs
+            .filter { it.id != target.entry?.id }
+            .mapNotNull { it.inboundId }
+            .toSet()
+        val availableInbounds = (server?.inbounds.orEmpty())
+            .filterNot { it.id in takenIds }
         ConfigEditDialog(
             existing = target.entry,
-            serverInbounds = server?.inbounds.orEmpty(),
+            serverInbounds = availableInbounds,
             serverName = server?.name?.ifBlank { server.id },
             onDismiss = { editTarget = null },
             onConfirm = { built ->
@@ -300,13 +308,14 @@ private fun ConfigEntryRow(
                 fontWeight = FontWeight.SemiBold,
                 style = MaterialTheme.typography.bodyMedium,
             )
+            val protocolLabel = inbound?.protocol?.uppercase() ?: entry.protocol.label
             val inboundLabel = when {
                 inbound != null -> "#${inbound.id} ${inbound.protocol}:${inbound.port}"
                 entry.inboundId != null -> "#${entry.inboundId} (missing)"
                 else -> "no inbound"
             }
             Text(
-                "${entry.protocol.label} · ${entry.type.label} · $inboundLabel" +
+                "$protocolLabel · ${entry.type.label} · $inboundLabel" +
                     if (entry.location.isNotBlank()) " · ${entry.location}" else "",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -328,7 +337,6 @@ private fun ConfigEditDialog(
     var name by remember(existing) { mutableStateOf(existing?.name.orEmpty()) }
     var location by remember(existing) { mutableStateOf(existing?.location.orEmpty()) }
     var type by remember(existing) { mutableStateOf(existing?.type ?: TemplateConfigType.DIRECT) }
-    var protocol by remember(existing) { mutableStateOf(existing?.protocol ?: TemplateConfigProtocol.VLESS) }
     var inboundId by remember(existing) { mutableStateOf(existing?.inboundId) }
     var inboundExpanded by remember { mutableStateOf(false) }
 
@@ -363,17 +371,6 @@ private fun ConfigEditDialog(
                             selected = type == t,
                             onClick = { type = t },
                         ) { Text(t.label) }
-                    }
-                }
-
-                Text("Protocol", style = MaterialTheme.typography.labelMedium)
-                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                    TemplateConfigProtocol.entries.forEachIndexed { i, p ->
-                        SegmentedButton(
-                            shape = SegmentedButtonDefaults.itemShape(i, TemplateConfigProtocol.entries.size),
-                            selected = protocol == p,
-                            onClick = { protocol = p },
-                        ) { Text(p.label) }
                     }
                 }
 
@@ -429,13 +426,20 @@ private fun ConfigEditDialog(
             TextButton(
                 enabled = canSave,
                 onClick = {
+                    // Derive protocol from the selected inbound — `protocol` is no longer
+                    // a user choice. Fallback preserves existing value when inbound is exotic.
+                    val derivedProtocol = when (selectedInbound?.protocol?.lowercase()) {
+                        "vless" -> TemplateConfigProtocol.VLESS
+                        "hysteria", "hysteria2" -> TemplateConfigProtocol.HYSTERIA2
+                        else -> existing?.protocol ?: TemplateConfigProtocol.VLESS
+                    }
                     onConfirm(
                         TemplateConfigEntry(
                             id = existing?.id ?: newDocId(),
                             name = name.trim(),
                             location = location.trim(),
                             type = type,
-                            protocol = protocol,
+                            protocol = derivedProtocol,
                             inboundId = inboundId,
                         )
                     )

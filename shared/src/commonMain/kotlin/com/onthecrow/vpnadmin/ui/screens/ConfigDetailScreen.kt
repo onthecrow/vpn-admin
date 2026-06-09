@@ -228,8 +228,12 @@ private fun VpnConfigRow(
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
             Text(vpn.name.ifBlank { "(unnamed)" }, style = MaterialTheme.typography.titleMedium)
+            val typeLabel = when (vpn.type) {
+                com.onthecrow.vpnadmin.data.TemplateConfigType.DIRECT -> "Direct"
+                com.onthecrow.vpnadmin.data.TemplateConfigType.CASCADE -> "Cascade"
+            }
             Text(
-                "${vpn.id}  ·  ${vpn.location}",
+                "${vpn.id}  ·  ${vpn.location}  ·  $typeLabel",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

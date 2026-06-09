@@ -13,11 +13,13 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -25,6 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.onthecrow.vpnadmin.data.TemplateConfigType
 import com.onthecrow.vpnadmin.data.VpnConfig
 import com.onthecrow.vpnadmin.ui.EditSession
 
@@ -52,6 +55,7 @@ fun VpnConfigEditScreen(
     var location by remember { mutableStateOf(existing?.location.orEmpty()) }
     var name by remember { mutableStateOf(existing?.name.orEmpty()) }
     var url by remember { mutableStateOf(existing?.url.orEmpty()) }
+    var type by remember { mutableStateOf(existing?.type ?: TemplateConfigType.DIRECT) }
     var idError by remember { mutableStateOf<String?>(null) }
 
     fun validate(): Boolean {
@@ -83,6 +87,7 @@ fun VpnConfigEditScreen(
                             location = location,
                             name = name,
                             url = url,
+                            type = type,
                         )
                         session.update { current ->
                             val newList = if (existing == null) {
@@ -136,6 +141,24 @@ fun VpnConfigEditScreen(
                 minLines = 3,
                 modifier = Modifier.fillMaxWidth(),
             )
+
+            Text("type", style = MaterialTheme.typography.labelMedium)
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                TemplateConfigType.entries.forEachIndexed { i, t ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(i, TemplateConfigType.entries.size),
+                        selected = type == t,
+                        onClick = { type = t },
+                    ) {
+                        Text(
+                            when (t) {
+                                TemplateConfigType.DIRECT -> "Direct"
+                                TemplateConfigType.CASCADE -> "Cascade"
+                            }
+                        )
+                    }
+                }
+            }
         }
     }
 }
